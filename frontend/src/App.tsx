@@ -1,10 +1,13 @@
 import './App.css'
-import { Button } from './components/ui/button'
+import { Dashboard } from './components/dashboard'
 
 function App() {
 
   return (
-    <Button variant="default">Hello World</Button>
+    <div>
+      <h1>Welcome to Dashboard</h1>
+      <Dashboard />
+    </div>
   )
 }
 
