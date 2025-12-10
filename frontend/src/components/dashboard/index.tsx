@@ -1,95 +1,44 @@
 import { useState } from "react"
-import { Button } from "../ui/button"
-import { Input } from "../ui/input"
 import { isValidYoutubeUrl } from "@/lib/validators"
-import {
-    fetchYoutubeVideoClient,
-    fetchVideoComments,
-    processCommentsWithModel
-} from "@/lib/youtube"
-import type { YoutubeVideoData, CommentAnalysis } from "@/lib/youtube"
+import { useYoutubeAnalysis } from "@/hooks/useYoutubeAnalysis"
+import { AnalyzeForm } from "./AnalyzeForm"
 import { VideoPreview } from "./VideoPreview"
 import { AnalysingSpinner } from "./AnalysingSpinner"
 import { AnalysisResult } from "./AnalysisResult"
-
-type Phase = "idle" | "fetchComments" | "processComments"
+import { motion, AnimatePresence } from "framer-motion"
 
 export const Dashboard = () => {
-    const [value, setValue] = useState("")
-    const [error, setError] = useState(false)
-    const [errorMessage, setErrorMessage] = useState("")
-    const [loading, setLoading] = useState(false)
-    const [video, setVideo] = useState<YoutubeVideoData | null>(null)
-    const [phase, setPhase] = useState<Phase>("idle")
-    const [progress, setProgress] = useState(0)
-    const [phaseCurrent, setPhaseCurrent] = useState(0)
-    const [phaseTotal, setPhaseTotal] = useState(0)
-    const [analysisResult, setAnalysisResult] = useState<CommentAnalysis | null>(null)
+    const [url, setUrl] = useState("")
+    const [inputError, setInputError] = useState("")
+    const {
+        loading,
+        video,
+        phase,
+        progress,
+        phaseCurrent,
+        phaseTotal,
+        analysisResult,
+        analysisError,
+        analyze,
+        resetError
+    } = useYoutubeAnalysis()
 
-    async function handleAnalyze() {
-        if (!isValidYoutubeUrl(value)) {
-            setError(true)
-            setErrorMessage("Please enter a valid YouTube video URL.")
+    const hasContent = !!video || loading || !!analysisResult
+
+    function handleSubmit() {
+        if (!isValidYoutubeUrl(url)) {
+            setInputError("Please enter a valid YouTube video URL.")
             return
         }
-
-        setError(false)
-        setErrorMessage("")
-        setLoading(true)
-        setVideo(null)
-        setPhase("idle")
-        setProgress(0)
-        setPhaseCurrent(0)
-        setPhaseTotal(0)
-        setAnalysisResult(null)
-
-        try {
-            const data = await fetchYoutubeVideoClient(value)
-            setVideo(data)
-
-            const totalComments = data.statistics.commentCount
-
-            setPhase("fetchComments")
-            setPhaseCurrent(0)
-            setPhaseTotal(totalComments)
-
-            const comments = await fetchVideoComments(data.videoId, totalComments, fetched => {
-                setPhase("fetchComments")
-                setPhaseCurrent(fetched)
-                setPhaseTotal(totalComments)
-                const ratio = totalComments > 0 ? fetched / totalComments : 0
-                setProgress(Math.min(50, Math.round(ratio * 50)))
-            })
-
-            setPhase("processComments")
-            setPhaseCurrent(0)
-            setPhaseTotal(comments.length)
-
-            const result = await processCommentsWithModel(comments, processed => {
-                setPhase("processComments")
-                setPhaseCurrent(processed)
-                setPhaseTotal(comments.length)
-                const ratio = comments.length > 0 ? processed / comments.length : 0
-                setProgress(50 + Math.round(ratio * 50))
-            })
-
-            setAnalysisResult(result)
-            setProgress(100)
-        } catch (e: any) {
-            setError(true)
-            setErrorMessage(e.message || "Failed to analyze video.")
-        } finally {
-            setLoading(false)
-        }
+        setInputError("")
+        resetError()
+        analyze(url)
     }
 
-    function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-        const val = e.target.value
-        setValue(val)
-        if (error) {
-            setError(false)
-            setErrorMessage("")
-        }
+    function handleUrlChange(value: string) {
+        setUrl(value)
+        if (inputError) setInputError("")
+        if (analysisError) resetError()
     }
 
     function getPhaseLabel() {
@@ -98,47 +47,95 @@ export const Dashboard = () => {
         return ""
     }
 
+    const showErrorMessage = inputError || analysisError
+
     return (
-        <div className="flex flex-col gap-6 p-4 w-full">
-            <div className="flex flex-row gap-4 justify-center">
-                <Input
-                    className="max-w-lg"
-                    placeholder="paste youtube video link to analyze"
-                    value={value}
-                    onChange={handleInputChange}
-                    aria-invalid={error}
-                />
-                <Button variant="default" onClick={handleAnalyze} disabled={loading}>
-                    {loading ? "Analyzing..." : "Analyze"}
-                </Button>
-            </div>
+        <div className="relative w-full min-h-screen bg-background px-4 py-8">
+            <motion.div
+                className="absolute left-1/2 w-full max-w-3xl -translate-x-1/2"
+                initial={false}
+                animate={
+                    hasContent
+                        ? { top: 32, y: 0 }
+                        : { top: "50%", y: "-50%" }
+                }
+                transition={{ type: "spring", stiffness: 140, damping: 18 }}
+            >
+                <div className="flex flex-col items-center gap-4">
+                    <AnalyzeForm
+                        value={url}
+                        onChange={handleUrlChange}
+                        onSubmit={handleSubmit}
+                        loading={loading}
+                        hasError={!!inputError}
+                    />
 
-            {errorMessage && (
-                <p className="text-sm text-destructive">{errorMessage}</p>
-            )}
-
-            <div className="flex flex-row gap-4 items-center">
-                {video && (
-                    <div className="w-1/2">
-                        <VideoPreview video={video} />
-                    </div>
-                )}
-
-                <div className="w-1/2">
-                    {loading && phase !== "idle" && (
-                        <AnalysingSpinner
-                            phaseLabel={getPhaseLabel()}
-                            progress={progress}
-                            current={phaseCurrent}
-                            total={phaseTotal}
-                        />
-                    )}
-
-                    {!loading && analysisResult && (
-                        <AnalysisResult result={analysisResult} />
+                    {showErrorMessage && (
+                        <p className="text-sm text-destructive mt-2">
+                            {showErrorMessage}
+                        </p>
                     )}
                 </div>
-            </div>
+            </motion.div>
+
+            <AnimatePresence>
+                {hasContent && (
+                    <motion.div
+                        key="analysis-section"
+                        initial={{ opacity: 0, y: 32 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 32 }}
+                        transition={{ duration: 0.51, ease: "easeOut" }}
+                        className="pt-52 flex flex-row gap-6 items-center"
+                    >
+                        {video && (
+                            <motion.div
+                                key="video-preview"
+                                initial={{ opacity: 0, x: -24 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -24 }}
+                                transition={{ duration: 0.5, ease: "easeOut" }}
+                                className="w-1/2"
+                            >
+                                <VideoPreview video={video} />
+                            </motion.div>
+                        )}
+
+                        <div className="w-1/2 space-y-4">
+                            <AnimatePresence mode="wait">
+                                {loading && phase !== "idle" && (
+                                    <motion.div
+                                        key="spinner"
+                                        initial={{ opacity: 0, y: 24 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 24 }}
+                                        transition={{ duration: 0.5 }}
+                                    >
+                                        <AnalysingSpinner
+                                            phaseLabel={getPhaseLabel()}
+                                            progress={progress}
+                                            current={phaseCurrent}
+                                            total={phaseTotal}
+                                        />
+                                    </motion.div>
+                                )}
+
+                                {!loading && analysisResult && (
+                                    <motion.div
+                                        key="analysis-result"
+                                        initial={{ opacity: 0, y: 24 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 24 }}
+                                        transition={{ duration: 0.5 }}
+                                    >
+                                        <AnalysisResult result={analysisResult} />
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 }
