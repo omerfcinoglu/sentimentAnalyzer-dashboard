@@ -1,0 +1,48 @@
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.pkl
+
+# ---- venv ----
+venv/
+ENV/
+env/
+.venv/
+
+# ---- FastAPI / Uvicorn ----
+*.log
+
+# ---- Model files ----
+# Büyük ağırlık dosyaları yanlışlıkla commit olmasın diye
+*.h5
+*.hdf5
+*.keras
+*.pb
+*.onnx
+*.tflite
+saved_model/
+models/
+
+# ---- Cache ----
+.cache/
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.pyre/
+.dmypy.json
+
+# ---- OS artifacts ----
+.DS_Store
+Thumbs.db
+
+# ---- IDE ----
+.vscode/
+.idea/
+
+# ---- Build / dist ----
+build/
+dist/
+*.egg-info/
