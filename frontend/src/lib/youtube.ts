@@ -49,7 +49,7 @@ function extractVideoId(url: string): string | null {
   }
 }
 
-const API_KEY = "API_KEY_HERE";
+const API_KEY = "AIzaSyAuP0Ojx4RhMY31gc44bwxcZ4skrx12cSY";
 
 export async function fetchYoutubeVideoClient(
   url: string
@@ -165,6 +165,7 @@ export async function processCommentsWithModel(
   }
 
   for (const c of comments) {
+    console.log(c);
     processed += 1;
     if (processed === total || processed % 10 === 0) {
       onProgress(processed);
