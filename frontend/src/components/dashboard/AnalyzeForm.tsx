@@ -20,10 +20,10 @@ export const AnalyzeForm = ({
         <div className="flex flex-col items-center gap-4 w-full">
             <div className="text-center space-y-2">
                 <h1 className="text-3xl font-semibold tracking-tight">
-                    YouTube Comment Sentiment Dashboard
+                    YouTube Comment Sentiment Analysis Dashboard
                 </h1>
                 <p className="text-sm text-muted-foreground max-w-xl">
-                    Paste a YouTube video URL to fetch its comments and analyze their sentiment with your fine-tuned BERT model.
+                    Analyze the sentiment of YouTube video comments using a custom fine-tuned BERT model optimized for Turkish language content.
                 </p>
             </div>
 
