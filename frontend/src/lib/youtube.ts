@@ -23,8 +23,22 @@ export type YoutubeComment = {
   author: string;
 };
 
+export type SentimentScores = {
+  Positive: number;
+  Notr: number;
+  Negative: number;
+};
+
+export type CommentSentiment = {
+  text: string;
+  label_id: number;
+  label: string;
+  scores: SentimentScores;
+};
+
 export type CommentAnalysis = {
   totalComments: number;
+  results: CommentSentiment[];
 };
 
 function extractVideoId(url: string): string | null {
@@ -50,6 +64,7 @@ function extractVideoId(url: string): string | null {
 }
 
 const API_KEY = "AIzaSyAuP0Ojx4RhMY31gc44bwxcZ4skrx12cSY";
+const BACKEND_URL = "http://127.0.0.1:8000/predict-batch";
 
 export async function fetchYoutubeVideoClient(
   url: string
@@ -104,7 +119,8 @@ export async function fetchYoutubeVideoClient(
 export async function fetchVideoComments(
   videoId: string,
   totalExpected: number,
-  onProgress: (fetched: number) => void
+  onProgress: (fetched: number) => void,
+  delayMs: number = 200
 ): Promise<YoutubeComment[]> {
   if (!API_KEY) {
     throw new Error("Missing YouTube API key");
@@ -113,7 +129,6 @@ export async function fetchVideoComments(
   const comments: YoutubeComment[] = [];
   let pageToken: string | undefined = undefined;
   let fetched = 0;
-  const limit = Math.min(totalExpected || 100, 200);
 
   while (true) {
     const url = new URL("https://www.googleapis.com/youtube/v3/commentThreads");
@@ -142,12 +157,14 @@ export async function fetchVideoComments(
     }
 
     fetched = comments.length;
-    onProgress(Math.min(fetched, limit));
+    onProgress(fetched);
 
     if (!json.nextPageToken) break;
-    if (fetched >= limit) break;
-
     pageToken = json.nextPageToken;
+
+    if (delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
 
   return comments;
@@ -173,5 +190,57 @@ export async function processCommentsWithModel(
     }
   }
 
-  return { totalComments: total };
+  return { totalComments: total, results: [] };
+}
+
+export async function analyzeCommentsWithBackend(
+  comments: YoutubeComment[],
+  onProgress: (processed: number) => void
+): Promise<CommentAnalysis> {
+  const texts = comments.map((c) => c.text);
+  const batchSize = 32;
+  const results: CommentSentiment[] = [];
+  let processed = 0;
+
+  for (let i = 0; i < texts.length; i += batchSize) {
+    const batch = texts.slice(i, i + batchSize);
+
+    const res = await fetch(BACKEND_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ texts: batch }),
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to get predictions from backend");
+    }
+
+    const data = await res.json();
+    if (!data.results || !Array.isArray(data.results)) {
+      throw new Error("Unexpected backend response");
+    }
+
+    for (const r of data.results) {
+      results.push({
+        text: r.text,
+        label_id: r.label_id,
+        label: r.label,
+        scores: {
+          Positive: r.scores.Positive,
+          Notr: r.scores.Notr,
+          Negative: r.scores.Negative,
+        },
+      });
+    }
+
+    processed += batch.length;
+    onProgress(processed);
+  }
+
+  return {
+    totalComments: comments.length,
+    results,
+  };
 }
