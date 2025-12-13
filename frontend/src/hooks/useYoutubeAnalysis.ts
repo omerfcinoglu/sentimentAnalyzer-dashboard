@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import {
   fetchYoutubeVideoClient,
   fetchVideoComments,
-  processCommentsWithModel,
+  analyzeCommentsWithBackend,
 } from "@/lib/youtube";
 import type { YoutubeVideoData, CommentAnalysis } from "@/lib/youtube";
 
@@ -63,17 +63,18 @@ export function useYoutubeAnalysis(): UseYoutubeAnalysisState & {
           setPhaseTotal(totalComments);
           const ratio = totalComments > 0 ? fetched / totalComments : 0;
           setProgress(Math.min(50, Math.round(ratio * 50)));
-        }
+        },
+        200
       );
 
       setPhase("processComments");
       setPhaseCurrent(0);
-      setPhaseTotal(comments.length);
+      setPhaseTotal(totalComments);
 
-      const result = await processCommentsWithModel(comments, (processed) => {
+      const result = await analyzeCommentsWithBackend(comments, (processed) => {
         setPhase("processComments");
         setPhaseCurrent(processed);
-        setPhaseTotal(comments.length);
+        setPhaseTotal(totalComments);
         const ratio = comments.length > 0 ? processed / comments.length : 0;
         setProgress(50 + Math.round(ratio * 50));
       });
