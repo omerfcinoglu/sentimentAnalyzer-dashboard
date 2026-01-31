@@ -63,11 +63,11 @@ function extractVideoId(url: string): string | null {
   }
 }
 
-const API_KEY = "AIzaSyAuP0Ojx4RhMY31gc44bwxcZ4skrx12cSY";
+const API_KEY = "AIzaSyAuP0Ojx4RhMY31gc44bwxcZ4skrx12cSY"; // yes yes i know
 const BACKEND_URL = "http://127.0.0.1:8000/predict-batch";
 
 export async function fetchYoutubeVideoClient(
-  url: string
+  url: string,
 ): Promise<YoutubeVideoData> {
   const videoId = extractVideoId(url);
   if (!videoId) {
@@ -79,7 +79,7 @@ export async function fetchYoutubeVideoClient(
   }
 
   const res = await fetch(
-    `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoId}&key=${API_KEY}`
+    `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoId}&key=${API_KEY}`,
   );
 
   if (!res.ok) {
@@ -120,7 +120,7 @@ export async function fetchVideoComments(
   videoId: string,
   totalExpected: number,
   onProgress: (fetched: number) => void,
-  delayMs: number = 200
+  delayMs: number = 200,
 ): Promise<YoutubeComment[]> {
   if (!API_KEY) {
     throw new Error("Missing YouTube API key");
@@ -172,7 +172,7 @@ export async function fetchVideoComments(
 
 export async function processCommentsWithModel(
   comments: YoutubeComment[],
-  onProgress: (processed: number) => void
+  onProgress: (processed: number) => void,
 ): Promise<CommentAnalysis> {
   let processed = 0;
   const total = comments.length;
@@ -195,7 +195,7 @@ export async function processCommentsWithModel(
 
 export async function analyzeCommentsWithBackend(
   comments: YoutubeComment[],
-  onProgress: (processed: number) => void
+  onProgress: (processed: number) => void,
 ): Promise<CommentAnalysis> {
   const texts = comments.map((c) => c.text);
   const batchSize = 32;
